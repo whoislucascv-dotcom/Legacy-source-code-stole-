@@ -1,51 +1,23 @@
--- ============================================================
--- FIX: Define ButtonGradients ANTES de qualquer coisa usar
--- ============================================================
-getgenv().ButtonGradients = getgenv().ButtonGradients or {
-    Background = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(15, 15, 15)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(30, 30, 30)),
-    }),
-    Stroke = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 170, 255)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(170, 0, 255)),
-    }),
-}
+local Fluent = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Fluent.lua"))()
 
 local FBM = {
-    AddButton = function(self, name, frame, ...) end,
-    SetLibrary = function(self, lib) end,
-    SetFolder = function(self, folder) end,
-    BuildConfigSection = function(self, tab) end,
+    AddButton = function() end,
+    SetLibrary = function() end,
+    SetFolder = function() end,
+    BuildConfigSection = function() end,
 }
 local SaveManager = {
-    SetLibrary = function(self, lib) end,
-    SetFolder = function(self, folder) end,
-    SetIgnoreIndexes = function(self, list) end,
-    BuildConfigSection = function(self, tab) end,
-    LoadAutoloadConfig = function(self) end,
+    SetLibrary = function() end,
+    SetFolder = function() end,
+    SetIgnoreIndexes = function() end,
+    BuildConfigSection = function() end,
+    LoadAutoloadConfig = function() end,
 }
 local InterfaceManager = {
-    SetLibrary = function(self, lib) end,
-    SetFolder = function(self, folder) end,
-    BuildInterfaceSection = function(self, tab) end,
+    SetLibrary = function() end,
+    SetFolder = function() end,
+    BuildInterfaceSection = function() end,
 }
-
-local Fluent
-do
-    local ok, result = pcall(function()
-        return loadstring(game:HttpGet(
-            "https://github.com/justmoon56/FluentModify/releases/download/V1.4.1/FluentTesting"
-        ))()
-    end)
-    if not ok or not result then
-        warn("[MoonHub] Falha ao carregar FluentModify: " .. tostring(result))
-        warn("[MoonHub] O link pode estar morto.")
-        return
-    end
-    Fluent = result
-end
--- 👆 FIM DO FIX. TUDO ABAIXO É O SEU CÓDIGO ORIGINAL 👇
 
 if _G.FluentModifyIsAlreadyRunning then
     Fluent:Notify({
