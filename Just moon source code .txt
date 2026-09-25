@@ -1,37 +1,157 @@
-local Fluent = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Fluent.lua"))()
+-- ============================================================
+-- FLUENT → WINDUI ADAPTER
+-- ============================================================
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+WindUI:SetNotificationLower(true)
 
-local FBM = {
-    AddButton = function() end,
-    SetLibrary = function() end,
-    SetFolder = function() end,
-    BuildConfigSection = function() end,
-}
-local SaveManager = {
-    SetLibrary = function() end,
-    SetFolder = function() end,
-    SetIgnoreIndexes = function() end,
-    BuildConfigSection = function() end,
-    LoadAutoloadConfig = function() end,
-}
-local InterfaceManager = {
-    SetLibrary = function() end,
-    SetFolder = function() end,
-    BuildInterfaceSection = function() end,
-}
+local Fluent = { Options = {}, Unloaded = false }
+
+local function attachOption(name, rawElem, initialValue)
+    local opt = { _elem = rawElem, Value = initialValue, _callbacks = {} }
+    function opt:OnChanged(fn) table.insert(self._callbacks, fn); return self end
+    function opt:SetValue(v)
+        self.Value = v
+        pcall(function() if self._elem.SetValue then self._elem:SetValue(v) end end)
+        for _, fn in ipairs(self._callbacks) do task.spawn(fn, v) end
+    end
+    Fluent.Options[name] = opt
+    return opt
+end
+
+local function wrapTab(raw)
+    local tab = {}
+    function tab:AddSection(title)
+        local sec = raw:Section({ Title = title, Opened = true })
+        return wrapTab(sec)
+    end
+    function tab:AddParagraph(cfg)
+        cfg = cfg or {}
+        return raw:Paragraph({ Title = cfg.Title or "", Desc = cfg.Content or cfg.Description or "" })
+    end
+    function tab:AddButton(cfg)
+        cfg = cfg or {}
+        return raw:Button({ Title = cfg.Title or "Button", Desc = cfg.Desc or cfg.Description, Icon = cfg.Icon, Callback = cfg.Callback or function() end })
+    end
+    function tab:AddToggle(name, cfg)
+        cfg = cfg or {}
+        local userCb = cfg.Callback
+        local initial = cfg.Default == true or cfg.Value == true
+        local raw2 = raw:Toggle({
+            Title = cfg.Title or name, Desc = cfg.Desc,
+            Default = initial, Value = initial, Flag = name,
+            Callback = function(v) if userCb then userCb(v) end end
+        })
+        return attachOption(name, raw2, initial)
+    end
+    function tab:AddInput(name, cfg)
+        cfg = cfg or {}
+        local userCb = cfg.Callback
+        local val = tostring(cfg.Default or cfg.Value or "")
+        local raw2 = raw:Input({
+            Title = cfg.Title or name, Desc = cfg.Desc,
+            Value = val, Default = val, Placeholder = cfg.Placeholder,
+            Callback = function(v) if userCb then userCb(v) end end
+        })
+        return attachOption(name, raw2, val)
+    end
+    function tab:AddDropdown(name, cfg)
+        cfg = cfg or {}
+        local userCb = cfg.Callback
+        local vals = cfg.Values or {}
+        local val = cfg.Default or cfg.Value
+        if type(val) == "number" then val = vals[val] end
+        local raw2 = raw:Dropdown({
+            Title = cfg.Title or name, Desc = cfg.Desc,
+            Values = vals, Value = val, Multi = cfg.Multi == true, Flag = name,
+            Callback = function(s) if userCb then userCb(s) end end
+        })
+        return attachOption(name, raw2, val)
+    end
+    function tab:AddSlider(name, cfg)
+        cfg = cfg or {}
+        local userCb = cfg.Callback
+        local min = tonumber(cfg.Min) or 0
+        local max = tonumber(cfg.Max) or 100
+        local def = tonumber(cfg.Default or cfg.Value) or min
+        local raw2 = raw:Slider({
+            Title = cfg.Title or name, Desc = cfg.Desc,
+            Value = { Min = min, Max = max, Default = def },
+            Min = min, Max = max, Default = def,
+            Callback = function(v) if userCb then userCb(v) end end
+        })
+        return attachOption(name, raw2, def)
+    end
+    function tab:AddColorpicker(name, cfg)
+        cfg = cfg or {}
+        local userCb = cfg.Callback
+        local def = cfg.Default or Color3.new(1,1,1)
+        local raw2 = raw:Colorpicker({
+            Title = cfg.Title or name, Default = def, Flag = name,
+            Callback = function(c) if userCb then userCb(c) end end
+        })
+        return attachOption(name, raw2, def)
+    end
+    function tab:AddKeybind(name, cfg)
+        cfg = cfg or {}
+        local userCb = cfg.Callback
+        local raw2 = raw:Keybind({
+            Title = cfg.Title or name, Desc = cfg.Desc,
+            Default = cfg.Default, HoldToInteract = cfg.HoldToInteract,
+            Callback = function() if userCb then userCb() end end
+        })
+        return attachOption(name, raw2, cfg.Default)
+    end
+    function tab:AddDiscord(cfg)
+        cfg = cfg or {}
+        return raw:Paragraph({ Title = "Discord", Desc = cfg.InviteCode or "" })
+    end
+    return setmetatable(tab, { __index = raw })
+end
+
+function Fluent:CreateWindow(cfg)
+    cfg = cfg or {}
+    local rawWin = WindUI:CreateWindow({
+        Title = cfg.Title or "UI",
+        Author = cfg.SubTitle or "",
+        Icon = "solar:widget-bold-duotone",
+        Folder = "MoonHubX",
+        Size = cfg.Size or UDim2.fromOffset(540, 390),
+        Theme = "Dark",
+        MinimizeKey = cfg.MinimizeKey,
+        NewElements = true,
+        OpenButton = { Enabled = true, Draggable = true },
+    })
+    local win = {}
+    function win:AddTab(t) return wrapTab(rawWin:Tab({ Title = t.Title or "Tab", Icon = t.Icon })) end
+    function win:Minimize() if rawWin.Minimize then return rawWin:Minimize() end end
+    function win:Dialog(cfg)
+        local btns = {}
+        for _, b in ipairs(cfg.Buttons or {}) do
+            table.insert(btns, { Title = b.Title, Callback = b.Callback })
+        end
+        if rawWin.Dialog then return rawWin:Dialog({ Title = cfg.Title, Content = cfg.Content, Buttons = btns }) end
+    end
+    return setmetatable(win, { __index = rawWin })
+end
+
+function Fluent:Notify(cfg)
+    cfg = cfg or {}
+    return WindUI:Notify({ Title = cfg.Title or "Moon Hub", Content = cfg.Content or "", Duration = cfg.Duration or 5 })
+end
+
+function Fluent:Unload() Fluent.Unloaded = true end
+
+local FBM = { AddButton=function() end, SetLibrary=function() end, SetFolder=function() end, BuildConfigSection=function() end }
+local SaveManager = { SetLibrary=function() end, SetFolder=function() end, SetIgnoreIndexes=function() end, BuildConfigSection=function() end, LoadAutoloadConfig=function() end }
+local InterfaceManager = { SetLibrary=function() end, SetFolder=function() end, BuildInterfaceSection=function() end }
 
 if _G.FluentModifyIsAlreadyRunning then
-    Fluent:Notify({
-        Title = "Interface",
-        Content = "Callback error",
-        SubContent = "Script is already running!",
-        Type = "Error",
-        Duration = 5
-     })
-
+    Fluent:Notify({ Title = "Interface", Content = "Script is already running!", Duration = 5 })
     return
 end
 
 _G.FluentModifyIsAlreadyRunning = true
+
 
 local Window = Fluent:CreateWindow({
     Title = "Moon-Hub-X | Evade Legacy",
