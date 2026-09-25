@@ -19,6 +19,7 @@ local InterfaceManager = {
     BuildInterfaceSection = function() end,
 }
 
+
 if _G.FluentModifyIsAlreadyRunning then
     Fluent:Notify({
         Title = "Interface",
